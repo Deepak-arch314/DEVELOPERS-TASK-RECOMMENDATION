@@ -342,7 +342,7 @@
 </div>
 
 <script>
-  const API_BASE = "https://developers-task-recommendation.onrender.com";
+  const API_BASE = "https://developers-task-recommendation.onrender.com/api";
   let globalDevsList = [];
 
   function switchTab(tabId, btn) {
@@ -391,7 +391,7 @@
     populateDevDropdown(filtered);
   }
 
-  async function fetchWithRetry(url, retries = 3, delay = 5000) {
+  async function fetchWithRetry(url, retries = 5, delay = 4000) {
     for (let i = 0; i < retries; i++) {
       try {
         const response = await fetch(url);
@@ -438,7 +438,7 @@
       console.error("Error loading data:", err);
       document.getElementById('totalDevs').innerText = '0';
       document.getElementById('totalTasks').innerText = '0';
-      document.getElementById('recsTable').innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--accent-red);">Server waking up... please refresh in 30 seconds.</td></tr>`;
+      document.getElementById('recsTable').innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--accent-red);">Server waking up... please wait a moment and refresh.</td></tr>`;
     }
   }
 
@@ -453,7 +453,8 @@
     }
 
     try {
-      const data = await fetchWithRetry(`${API_BASE}/recommendations/developer/${devId}?top_n=${topN}`);
+      // Fixed URL endpoint to match FastAPI backend route: /api/recommendations/{developer_id}
+      const data = await fetchWithRetry(`${API_BASE}/recommendations/${devId}?top_n=${topN}`);
 
       if (!data || data.length === 0) {
         recsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No recommendations found.</td></tr>`;
@@ -526,6 +527,3 @@
 
   window.onload = refreshData;
 </script>
-
-</body>
-</html>
