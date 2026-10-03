@@ -246,10 +246,17 @@
     </div>
 
     <div class="controls">
+      <!-- Added Search Developer Input -->
+      <div class="control-group">
+        <label style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Search Developer:</label>
+        <input type="text" id="devSearchInput" placeholder="🔍 Search name or skill..." oninput="filterDevelopers()">
+      </div>
+
       <div class="control-group">
         <label style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Select Developer:</label>
         <select id="devSelect" onchange="loadRecommendations()"></select>
       </div>
+
       <div class="control-group">
         <label style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Show Top:</label>
         <select id="topNSelect" onchange="loadRecommendations()">
@@ -344,6 +351,7 @@
 
 <script>
   const API_BASE = "http://127.0.0.1:8000/api";
+  let globalDevsList = [];
 
   function switchTab(tabId, btn) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -357,6 +365,40 @@
     return arr.map(s => `<span class="badge-skill">${s.trim()}</span>`).join('');
   }
 
+  function populateDevDropdown(devs) {
+    const devSelect = document.getElementById('devSelect');
+    const selectedValue = devSelect.value;
+
+    if (!devs || devs.length === 0) {
+      devSelect.innerHTML = `<option value="">No matching developers</option>`;
+      loadRecommendations();
+      return;
+    }
+
+    devSelect.innerHTML = devs.map(d => {
+      const skillsStr = Array.isArray(d.skills) ? d.skills.join(', ') : d.skills;
+      return `<option value="${d.id}">${d.name} (${skillsStr})</option>`;
+    }).join('');
+
+    if (selectedValue && devs.some(d => d.id == selectedValue)) {
+      devSelect.value = selectedValue;
+    }
+
+    loadRecommendations();
+  }
+
+  function filterDevelopers() {
+    const query = document.getElementById('devSearchInput').value.toLowerCase().trim();
+    const filtered = globalDevsList.filter(d => {
+      const nameMatch = d.name.toLowerCase().includes(query);
+      const skillsStr = Array.isArray(d.skills) ? d.skills.join(' ') : (d.skills || '');
+      const skillMatch = skillsStr.toLowerCase().includes(query);
+      return nameMatch || skillMatch;
+    });
+
+    populateDevDropdown(filtered);
+  }
+
   async function refreshData() {
     try {
       const statsRes = await fetch(`${API_BASE}/stats`);
@@ -365,21 +407,11 @@
       document.getElementById('totalTasks').innerText = stats.total_tasks;
 
       const devsRes = await fetch(`${API_BASE}/developers`);
-      const devs = await devsRes.json();
+      globalDevsList = await devsRes.json();
       
-      const devSelect = document.getElementById('devSelect');
-      const selectedValue = devSelect.value;
-      
-      devSelect.innerHTML = devs.map(d => {
-        const skillsStr = Array.isArray(d.skills) ? d.skills.join(', ') : d.skills;
-        return `<option value="${d.id}">${d.name} (${skillsStr})</option>`;
-      }).join('');
-      
-      if (selectedValue && devs.some(d => d.id == selectedValue)) {
-        devSelect.value = selectedValue;
-      }
+      filterDevelopers();
 
-      document.getElementById('devsTable').innerHTML = devs.map(d => `
+      document.getElementById('devsTable').innerHTML = globalDevsList.map(d => `
         <tr>
           <td>#${d.id}</td>
           <td><b>${d.name}</b></td>
@@ -402,7 +434,6 @@
         </tr>
       `).join('');
 
-      loadRecommendations();
     } catch (err) {
       console.error("Error loading data:", err);
     }
