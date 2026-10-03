@@ -246,11 +246,6 @@
     </div>
 
     <div class="controls">
-      <!-- Search Developer Input Box -->
-      <div class="control-group">
-        <label style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Search Developer:</label>
-        <input type="text" id="devSearchInput" placeholder="🔍 Search name or skill..." onkeyup="filterDevelopers()" style="width: 200px;">
-      </div>
       <div class="control-group">
         <label style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Select Developer:</label>
         <select id="devSelect" onchange="loadRecommendations()"></select>
@@ -362,30 +357,6 @@
     return arr.map(s => `<span class="badge-skill">${s.trim()}</span>`).join('');
   }
 
-  /* Search & Filter function for Developer dropdown */
-  function filterDevelopers() {
-    const query = document.getElementById('devSearchInput').value.toLowerCase();
-    const select = document.getElementById('devSelect');
-    const options = select.options;
-    let firstMatch = null;
-
-    for (let i = 0; i < options.length; i++) {
-      const text = options[i].text.toLowerCase();
-      if (text.includes(query)) {
-        options[i].style.display = "";
-        if (!firstMatch) firstMatch = options[i];
-      } else {
-        options[i].style.display = "none";
-      }
-    }
-
-    // Auto-select first matching developer if current selection gets hidden
-    if (firstMatch && select.selectedOptions[0]?.style.display === "none") {
-      select.value = firstMatch.value;
-      loadRecommendations();
-    }
-  }
-
   async function refreshData() {
     try {
       const statsRes = await fetch(`${API_BASE}/stats`);
@@ -407,9 +378,6 @@
       if (selectedValue && devs.some(d => d.id == selectedValue)) {
         devSelect.value = selectedValue;
       }
-
-      // Maintain filter state if user searched before refresh
-      filterDevelopers();
 
       document.getElementById('devsTable').innerHTML = devs.map(d => `
         <tr>

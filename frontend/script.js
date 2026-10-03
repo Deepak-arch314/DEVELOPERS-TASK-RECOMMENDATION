@@ -1,205 +1,198 @@
-const API_BASE = 'http://127.0.0.1:8000/api';
+let allDevelopers = [];
+let allTasks = [];
 
-document.addEventListener('DOMContentLoaded', () => {
-    setupNavigation();
-    loadDashboardStats();
-    loadDevelopersDropdown();
-    loadDevelopersList();
-    loadTasksList();
-
-    const devSelect = document.getElementById('developer-select');
-    const topNSelect = document.getElementById('top-n-select');
-    const searchInput = document.getElementById('developer-search'); // Search input event listener
-
-    if (devSelect) devSelect.addEventListener('change', handleDeveloperChange);
-    if (topNSelect) topNSelect.addEventListener('change', handleDeveloperChange);
-    if (searchInput) searchInput.addEventListener('input', filterDevelopersDropdown);
+document.addEventListener("DOMContentLoaded", () => {
+    initApp();
 });
 
-function setupNavigation() {
-    const navButtons = document.querySelectorAll('nav button');
-    const views = document.querySelectorAll('.view-section');
+async function initApp() {
+    try {
+        const response = await fetch("./data.json");
+        const data = await response.json();
 
-    navButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const targetView = button.getAttribute('data-target');
+        allDevelopers = data.developers || [];
+        allTasks = data.tasks || [];
 
-            navButtons.forEach(btn => {
-                btn.classList.remove('bg-white', 'text-blue-600', 'shadow');
-                btn.classList.add('text-white', 'hover:bg-blue-700');
-            });
+        // Update counts
+        const devCountEl = document.getElementById("total-developers");
+        const taskCountEl = document.getElementById("total-tasks");
+        if (devCountEl) devCountEl.textContent = allDevelopers.length;
+        if (taskCountEl) taskCountEl.textContent = allTasks.length;
 
-            button.classList.add('bg-white', 'text-blue-600', 'shadow');
-            button.classList.remove('text-white', 'hover:bg-blue-700');
+        // Render lists and dropdowns
+        populateDeveloperDropdown(allDevelopers);
+        renderDevelopersTable(allDevelopers);
+        renderTasksTable(allTasks);
+        setupEventListeners();
+    } catch (error) {
+        console.error("Error loading sample data:", error);
+    }
+}
 
-            views.forEach(view => {
-                if (view.id === `${targetView}-view`) {
-                    view.classList.remove('hidden');
-                } else {
-                    view.classList.add('hidden');
-                }
-            });
-        });
+// Populate Developer Dropdown
+function populateDeveloperDropdown(developers) {
+    const devSelect = document.getElementById("developer-select");
+    if (!devSelect) return;
+
+    devSelect.innerHTML = '<option value="">-- Select a Developer --</option>';
+    developers.forEach(dev => {
+        const option = document.createElement("option");
+        option.value = dev.id;
+        option.textContent = `${dev.name} (${dev.skills.join(", ")})`;
+        devSelect.appendChild(option);
     });
 }
 
-async function loadDashboardStats() {
-    try {
-        const [devsRes, tasksRes] = await Promise.all([
-            fetch(`${API_BASE}/developers/`),
-            fetch(`${API_BASE}/tasks/`)
-        ]);
+// Generate Task Recommendations directly in JS (Pure Frontend Logic)
+function generateRecommendations(developerId) {
+    const container = document.getElementById("recommendations-list");
+    if (!container) return;
 
-        const developers = await devsRes.json();
-        const tasks = await tasksRes.json();
+    const dev = allDevelopers.find(d => d.id == developerId);
+    if (!dev) return;
 
-        const openTasks = tasks.filter(t => t.status && t.status.toLowerCase() === 'open');
+    // Calculate match score based on skill overlap
+    const devSkills = dev.skills.map(s => s.toLowerCase());
+    
+    let scoredTasks = allTasks.map(task => {
+        const reqSkills = task.required_skills.map(s => s.toLowerCase());
+        const matchingSkills = reqSkills.filter(s => devSkills.includes(s));
+        const score = reqSkills.length > 0 ? (matchingSkills.length / reqSkills.length) : 0;
+        return { ...task, score };
+    });
 
-        document.getElementById('total-developers').innerText = developers.length || 0;
-        document.getElementById('total-tasks').innerText = tasks.length || 0;
-        document.getElementById('open-tasks').innerText = openTasks.length || 0;
-    } catch (error) {
-        console.error('Error loading dashboard stats:', error);
-    }
+    // Sort highest match first
+    scoredTasks.sort((a, b) => b.score - a.score);
+
+    const topNSelect = document.getElementById("top-n-select");
+    const topN = topNSelect ? parseInt(topNSelect.value, 10) : 10;
+    renderRecommendations(scoredTasks.slice(0, topN));
 }
 
-async function loadDevelopersDropdown() {
-    try {
-        const response = await fetch(`${API_BASE}/developers/`);
-        const developers = await response.json();
-        const devSelect = document.getElementById('developer-select');
+// Render Recommendations Table
+function renderRecommendations(tasks) {
+    const container = document.getElementById("recommendations-list");
+    if (!container) return;
 
-        if (!devSelect) return;
-
-        devSelect.innerHTML = '<option value="">Select a developer...</option>';
-        developers.forEach(dev => {
-            const option = document.createElement('option');
-            option.value = dev.id;
-            const skillsStr = Array.isArray(dev.skills) ? dev.skills.join(', ') : dev.skills;
-            option.textContent = `${dev.name} (${skillsStr})`;
-            devSelect.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error loading developers dropdown:', error);
-    }
-}
-
-// NEW FEATURE: Real-time search/filter for developer dropdown options
-function filterDevelopersDropdown() {
-    const searchInput = document.getElementById('developer-search');
-    const devSelect = document.getElementById('developer-select');
-
-    if (!searchInput || !devSelect) return;
-
-    const query = searchInput.value.toLowerCase();
-    const options = devSelect.options;
-
-    for (let i = 0; i < options.length; i++) {
-        const text = options[i].text.toLowerCase();
-        // Always show the default placeholder option, filter others based on search text
-        if (options[i].value === "" || text.includes(query)) {
-            options[i].style.display = "";
-        } else {
-            options[i].style.display = "none";
-        }
-    }
-}
-
-async function handleDeveloperChange() {
-    const devSelect = document.getElementById('developer-select');
-    const topNSelect = document.getElementById('top-n-select');
-    const recommendationsContainer = document.getElementById('recommendations-list');
-
-    if (!devSelect || !recommendationsContainer) return;
-
-    const devId = devSelect.value;
-    const topN = topNSelect ? topNSelect.value || 5 : 5;
-
-    if (!devId) {
-        recommendationsContainer.innerHTML = '<p class="text-gray-500">Please select a developer to view recommendations.</p>';
+    if (!tasks || tasks.length === 0) {
+        container.innerHTML = '<p class="text-center">No recommendations found.</p>';
         return;
     }
 
-    recommendationsContainer.innerHTML = '<p class="text-gray-500">Loading recommendations...</p>';
+    let html = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>TASK TITLE</th>
+                    <th>REQUIRED SKILLS</th>
+                    <th>DIFFICULTY</th>
+                    <th>EST. HOURS</th>
+                    <th>MATCH SCORE</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
 
-    try {
-        const response = await fetch(`${API_BASE}/recommendations/developer/${devId}?top_n=${topN}`);
-        const recommendations = await response.json();
+    tasks.forEach(task => {
+        html += `
+            <tr>
+                <td><strong>${task.title}</strong></td>
+                <td>${Array.isArray(task.required_skills) ? task.required_skills.join(", ") : task.required_skills}</td>
+                <td><span class="badge badge-info">${task.difficulty}</span></td>
+                <td>${task.est_hours} hrs</td>
+                <td><strong class="text-success">${(task.score * 100).toFixed(0)}%</strong></td>
+            </tr>
+        `;
+    });
 
-        if (!recommendations || recommendations.length === 0) {
-            recommendationsContainer.innerHTML = '<p class="text-gray-500">No suitable task recommendations found.</p>';
-            return;
-        }
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+}
 
-        recommendationsContainer.innerHTML = '';
-        recommendations.forEach(item => {
-            const card = document.createElement('div');
-            card.className = 'p-4 border rounded-lg bg-white shadow-sm mb-3';
-            const skillsStr = Array.isArray(item.task.required_skills) 
-                ? item.task.required_skills.join(', ') 
-                : item.task.required_skills;
+// Render Developers Table
+function renderDevelopersTable(developers) {
+    const container = document.getElementById("developers-list");
+    if (!container) return;
 
-            card.innerHTML = `
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-bold text-lg text-blue-600">${item.task.title}</h3>
-                    <span class="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded font-semibold">
-                        Score: ${(item.recommendation_score * 100).toFixed(1)}%
-                    </span>
-                </div>
-                <p class="text-gray-600 text-sm mb-2">${item.task.description || 'No description provided.'}</p>
-                <div class="text-xs text-gray-500">
-                    <strong>Required Skills:</strong> ${skillsStr}
-                </div>
-            `;
-            recommendationsContainer.appendChild(card);
+    let html = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>NAME</th>
+                    <th>PRIMARY SKILLS</th>
+                    <th>EXPERIENCE LEVEL</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    developers.forEach(dev => {
+        html += `
+            <tr>
+                <td><strong>${dev.name}</strong></td>
+                <td>${dev.skills.join(", ")}</td>
+                <td>${dev.experience_level}</td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+}
+
+// Render Tasks Table
+function renderTasksTable(tasks) {
+    const container = document.getElementById("tasks-list");
+    if (!container) return;
+
+    let html = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>TITLE</th>
+                    <th>REQUIRED SKILLS</th>
+                    <th>DIFFICULTY</th>
+                    <th>EST. HOURS</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    tasks.forEach(task => {
+        html += `
+            <tr>
+                <td><strong>${task.title}</strong></td>
+                <td>${task.required_skills.join(", ")}</td>
+                <td>${task.difficulty}</td>
+                <td>${task.est_hours} hrs</td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+}
+
+// Event Listeners
+function setupEventListeners() {
+    const devSelect = document.getElementById("developer-select");
+    if (devSelect) {
+        devSelect.addEventListener("change", (e) => {
+            if (e.target.value) {
+                generateRecommendations(e.target.value);
+            }
         });
-    } catch (error) {
-        console.error('Error fetching recommendations:', error);
-        recommendationsContainer.innerHTML = '<p class="text-red-500">Failed to load recommendations.</p>';
     }
-}
 
-async function loadDevelopersList() {
-    const listEl = document.getElementById('developers-table-body');
-    if (!listEl) return;
-
-    try {
-        const response = await fetch(`${API_BASE}/developers/`);
-        const developers = await response.json();
-        
-        listEl.innerHTML = developers.map(dev => `
-            <tr class="border-b">
-                <td class="p-2 font-medium">${dev.id}</td>
-                <td class="p-2">${dev.name}</td>
-                <td class="p-2">${Array.isArray(dev.skills) ? dev.skills.join(', ') : dev.skills}</td>
-                <td class="p-2">${dev.experience_years} yrs</td>
-                <td class="p-2">${dev.current_load}/${dev.max_capacity}</td>
-            </tr>
-        `).join('');
-    } catch (e) {
-        console.error('Error loading developer list', e);
-    }
-}
-
-async function loadTasksList() {
-    const listEl = document.getElementById('tasks-table-body');
-    if (!listEl) return;
-
-    try {
-        const response = await fetch(`${API_BASE}/tasks/`);
-        const tasks = await response.json();
-        
-        listEl.innerHTML = tasks.map(t => `
-            <tr class="border-b">
-                <td class="p-2 font-medium">${t.id}</td>
-                <td class="p-2 font-semibold text-blue-600">${t.title}</td>
-                <td class="p-2">${Array.isArray(t.required_skills) ? t.required_skills.join(', ') : t.required_skills}</td>
-                <td class="p-2">${t.difficulty}</td>
-                <td class="p-2">${t.estimated_hours} hrs</td>
-                <td class="p-2"><span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800">${t.status}</span></td>
-            </tr>
-        `).join('');
-    } catch (e) {
-        console.error('Error loading task list', e);
+    const searchInput = document.getElementById("search-developer");
+    if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = allDevelopers.filter(d => 
+                d.name.toLowerCase().includes(query) || 
+                d.skills.some(s => s.toLowerCase().includes(query))
+            );
+            populateDeveloperDropdown(filtered);
+        });
     }
 }
