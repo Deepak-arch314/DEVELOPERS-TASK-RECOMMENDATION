@@ -1,13 +1,13 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from typing import List, Optional
 import sqlite3
-import pandas as pd
 import json
 
 app = FastAPI(title="Software Developer Task Recommender")
 
-# Enable CORS for frontend running on port 3000
+# Enable CORS for frontend requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,6 +22,21 @@ def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+# --- Pydantic Data Models ---
+class DeveloperCreate(BaseModel):
+    name: str
+    skills: List[str]
+    experience_years: int
+
+class TaskCreate(BaseModel):
+    title: str
+    required_skills: List[str]
+    difficulty: str
+    estimated_hours: int
+    status: Optional[str] = "OPEN"
+
+# --- API Routes ---
 
 @app.get("/api/stats")
 def get_stats():
@@ -52,10 +67,32 @@ def get_developers():
         if isinstance(dev_dict.get("skills"), str):
             try:
                 dev_dict["skills"] = json.loads(dev_dict["skills"])
-            except:
-                dev_dict["skills"] = dev_dict["skills"].split(",")
+            except Exception:
+                dev_dict["skills"] = [s.strip() for s in dev_dict["skills"].split(",") if s.strip()]
         result.append(dev_dict)
     return result
+
+@app.post("/api/developers")
+def add_developer(dev: DeveloperCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    skills_json = json.dumps(dev.skills)
+    cursor.execute(
+        "INSERT INTO developers (name, skills, experience_years) VALUES (?, ?, ?)",
+        (dev.name, skills_json, dev.experience_years)
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Developer added successfully"}
+
+@app.delete("/api/developers/{developer_id}")
+def delete_developer(developer_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM developers WHERE id=?", (developer_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Developer deleted successfully"}
 
 @app.get("/api/tasks")
 def get_tasks():
@@ -70,10 +107,32 @@ def get_tasks():
         if isinstance(task_dict.get("required_skills"), str):
             try:
                 task_dict["required_skills"] = json.loads(task_dict["required_skills"])
-            except:
-                task_dict["required_skills"] = task_dict["required_skills"].split(",")
+            except Exception:
+                task_dict["required_skills"] = [s.strip() for s in task_dict["required_skills"].split(",") if s.strip()]
         result.append(task_dict)
     return result
+
+@app.post("/api/tasks")
+def add_task(task: TaskCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    skills_json = json.dumps(task.required_skills)
+    cursor.execute(
+        "INSERT INTO tasks (title, required_skills, difficulty, estimated_hours, status) VALUES (?, ?, ?, ?, ?)",
+        (task.title, skills_json, task.difficulty, task.estimated_hours, task.status)
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Task added successfully"}
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Task deleted successfully"}
 
 @app.get("/api/recommendations/{developer_id}")
 def get_recommendations(developer_id: int, top_n: int = Query(5)):
@@ -85,14 +144,30 @@ def get_recommendations(developer_id: int, top_n: int = Query(5)):
         conn.close()
         raise HTTPException(status_code=404, detail="Developer not found")
         
-    dev_skills = set(json.loads(dev["skills"]) if isinstance(dev["skills"], str) else dev["skills"])
+    raw_dev_skills = dev["skills"]
+    if isinstance(raw_dev_skills, str):
+        try:
+            dev_skills = set(json.loads(raw_dev_skills))
+        except Exception:
+            dev_skills = set([s.strip() for s in raw_dev_skills.split(",") if s.strip()])
+    else:
+        dev_skills = set(raw_dev_skills)
+
     tasks = cursor.execute("SELECT * FROM tasks WHERE status='OPEN'").fetchall()
     conn.close()
     
     recommendations = []
     for t in tasks:
         t_dict = dict(t)
-        req_skills = set(json.loads(t_dict["required_skills"]) if isinstance(t_dict["required_skills"], str) else t_dict["required_skills"])
+        raw_req_skills = t_dict["required_skills"]
+        
+        if isinstance(raw_req_skills, str):
+            try:
+                req_skills = set(json.loads(raw_req_skills))
+            except Exception:
+                req_skills = set([s.strip() for s in raw_req_skills.split(",") if s.strip()])
+        else:
+            req_skills = set(raw_req_skills)
         
         match_count = len(dev_skills.intersection(req_skills))
         total_req = len(req_skills) if req_skills else 1
