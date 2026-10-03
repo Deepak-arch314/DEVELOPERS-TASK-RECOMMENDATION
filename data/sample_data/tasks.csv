@@ -1,0 +1,6 @@
+id,title,description,required_skills,difficulty,estimated_hours,status
+1,Build REST API for Auth,Create login and JWT registration endpoints,"Python, FastAPI, SQL",Medium,12.0,Open
+2,Design Landing Page,Create responsive homepage layout with Tailwind,"HTML, CSS, JavaScript",Easy,8.0,Open
+3,Train Recommendation Model,Build TF-IDF skill match pipeline,"Python, Machine Learning, Pandas",Hard,20.0,Open
+4,Setup CI/CD Pipeline,Configure GitHub actions for backend deployment,"Docker, Kubernetes",Medium,10.0,Open
+5,Refactor Frontend State,Migrate vanilla JS state to centralized store,"JavaScript, React",Medium,15.0,Open

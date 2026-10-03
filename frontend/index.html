@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developer Task Recommender</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #f1f5f9;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-soft: #eff6ff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --badge-skill-bg: #e0e7ff;
+      --badge-skill-text: #3730a3;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 35px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+    }
+
+    .header-title {
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 25px;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+    }
+
+    /* Tabs Bar */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      background: #f8fafc;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active {
+      background: var(--card-bg);
+      color: var(--primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.25s ease; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Dashboard Stats Cards */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--primary-soft);
+      border: 1px solid #dbeafe;
+      padding: 22px;
+      border-radius: 16px;
+      text-align: center;
+      transition: transform 0.2s ease;
+    }
+
+    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card h2 { font-size: 36px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+    .stat-card p { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Control Panel & Form Cards */
+    .controls, .form-card {
+      background: #f8fafc;
+      border: 1px solid var(--card-border);
+      padding: 20px;
+      border-radius: 16px;
+      margin-bottom: 25px;
+    }
+
+    .controls { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .control-group { display: flex; align-items: center; gap: 10px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    input, select {
+      padding: 11px 14px;
+      font-size: 14px;
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    /* Buttons */
+    .btn-primary {
+      padding: 11px 18px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-danger {
+      background: #fef2f2;
+      color: var(--accent-red);
+      border: 1px solid #fecaca;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-danger:hover { background: var(--accent-red); color: white; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 14px;
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    tr:hover { background: #f8fafc; }
+
+    /* Badges */
+    .badge-score {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .badge-skill {
+      display: inline-block;
+      background: var(--badge-skill-bg);
+      color: var(--badge-skill-text);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      margin: 2px 2px 2px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1 class="header-title">Software Developer Task Recommender</h1>
+
+  <!-- Navigation Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('recsTab', this)">Recommendations</button>
+    <button class="tab-btn" onclick="switchTab('devsTab', this)">Developers Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('tasksTab', this)">Tasks Dashboard</button>
+  </div>
+
+  <!-- TAB 1: RECOMMENDATIONS -->
+  <div id="recsTab" class="tab-content active">
+    <div class="stats">
+      <div class="stat-card">
+        <h2 id="totalDevs">0</h2>
+        <p>Total Developers</p>
+      </div>
+      <div class="stat-card">
+        <h2 id="totalTasks">0</h2>
+        <p>Total Tasks</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Select Developer:</label>
+        <select id="devSelect" onchange="loadRecommendations()"></select>
+      </div>
+      <div class="control-group">
+        <label style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Show Top:</label>
+        <select id="topNSelect" onchange="loadRecommendations()">
+          <option value="5">Top 5</option>
+          <option value="10" selected>Top 10</option>
+        </select>
+      </div>
+    </div>
+
+    <h3 style="margin-bottom: 15px; font-size: 18px; color: var(--text-main);">Recommended Tasks</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Task Title</th>
+          <th>Required Skills</th>
+          <th>Difficulty</th>
+          <th>Est. Hours</th>
+          <th>Match Score</th>
+        </tr>
+      </thead>
+      <tbody id="recsTable">
+        <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading recommendations...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TAB 2: DEVELOPERS DASHBOARD -->
+  <div id="devsTab" class="tab-content">
+    <h3 style="margin-bottom: 15px; font-size: 18px; color: var(--text-main);">Add New Developer</h3>
+    <div class="form-card">
+      <form onsubmit="addDeveloper(event)" class="form-grid">
+        <input type="text" id="devName" placeholder="Developer Name" required>
+        <input type="text" id="devSkills" placeholder="Skills (e.g. Python, FastAPI)" required>
+        <input type="number" id="devExp" placeholder="Experience (Years)" required>
+        <button type="submit" class="btn-primary">+ Add Developer</button>
+      </form>
+    </div>
+
+    <h3 style="margin-bottom: 15px; font-size: 18px; color: var(--text-main);">Developer Roster</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Skills</th>
+          <th>Experience</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="devsTable">
+        <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading developers...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TAB 3: TASKS DASHBOARD -->
+  <div id="tasksTab" class="tab-content">
+    <h3 style="margin-bottom: 15px; font-size: 18px; color: var(--text-main);">Add New Task</h3>
+    <div class="form-card">
+      <form onsubmit="addTask(event)" class="form-grid">
+        <input type="text" id="taskTitle" placeholder="Task Title" required>
+        <input type="text" id="taskSkills" placeholder="Required Skills (e.g. React, CSS)" required>
+        <select id="taskDifficulty">
+          <option value="Easy">Easy</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="Hard">Hard</option>
+        </select>
+        <input type="number" id="taskHours" placeholder="Est. Hours" required>
+        <button type="submit" class="btn-primary">+ Add Task</button>
+      </form>
+    </div>
+
+    <h3 style="margin-bottom: 15px; font-size: 18px; color: var(--text-main);">Task Backlog</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Task Title</th>
+          <th>Required Skills</th>
+          <th>Difficulty</th>
+          <th>Est. Hours</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tasksTable">
+        <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Loading tasks...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = "http://127.0.0.1:8000/api";
+
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function formatSkills(skills) {
+    const arr = Array.isArray(skills) ? skills : (skills ? skills.split(',') : []);
+    return arr.map(s => `<span class="badge-skill">${s.trim()}</span>`).join('');
+  }
+
+  async function refreshData() {
+    try {
+      const statsRes = await fetch(`${API_BASE}/stats`);
+      const stats = await statsRes.json();
+      document.getElementById('totalDevs').innerText = stats.total_developers;
+      document.getElementById('totalTasks').innerText = stats.total_tasks;
+
+      const devsRes = await fetch(`${API_BASE}/developers`);
+      const devs = await devsRes.json();
+      
+      const devSelect = document.getElementById('devSelect');
+      const selectedValue = devSelect.value;
+      
+      devSelect.innerHTML = devs.map(d => {
+        const skillsStr = Array.isArray(d.skills) ? d.skills.join(', ') : d.skills;
+        return `<option value="${d.id}">${d.name} (${skillsStr})</option>`;
+      }).join('');
+      
+      if (selectedValue && devs.some(d => d.id == selectedValue)) {
+        devSelect.value = selectedValue;
+      }
+
+      document.getElementById('devsTable').innerHTML = devs.map(d => `
+        <tr>
+          <td>#${d.id}</td>
+          <td><b>${d.name}</b></td>
+          <td>${formatSkills(d.skills)}</td>
+          <td>${d.experience_years} yrs</td>
+          <td><button class="btn-danger" onclick="deleteDeveloper(${d.id})">Delete</button></td>
+        </tr>
+      `).join('');
+
+      const tasksRes = await fetch(`${API_BASE}/tasks`);
+      const tasks = await tasksRes.json();
+      document.getElementById('tasksTable').innerHTML = tasks.map(t => `
+        <tr>
+          <td>#${t.id}</td>
+          <td><b>${t.title}</b></td>
+          <td>${formatSkills(t.required_skills)}</td>
+          <td>${t.difficulty}</td>
+          <td>${t.estimated_hours} hrs</td>
+          <td><button class="btn-danger" onclick="deleteTask(${t.id})">Delete</button></td>
+        </tr>
+      `).join('');
+
+      loadRecommendations();
+    } catch (err) {
+      console.error("Error loading data:", err);
+    }
+  }
+
+  async function loadRecommendations() {
+    const devId = document.getElementById('devSelect').value;
+    const topN = document.getElementById('topNSelect').value;
+    const recsTable = document.getElementById('recsTable');
+
+    if (!devId) {
+      recsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No developers available.</td></tr>`;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/recommendations/developer/${devId}?top_n=${topN}`);
+      const data = await res.json();
+
+      if (!data || data.length === 0) {
+        recsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No recommendations found.</td></tr>`;
+        return;
+      }
+
+      recsTable.innerHTML = data.map(t => `
+        <tr>
+          <td><b>${t.title}</b></td>
+          <td>${formatSkills(t.required_skills)}</td>
+          <td>${t.difficulty}</td>
+          <td>${t.estimated_hours} hrs</td>
+          <td><span class="badge-score">${t.match_score}% Match</span></td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error("Error loading recommendations:", err);
+    }
+  }
+
+  async function addDeveloper(e) {
+    e.preventDefault();
+    const payload = {
+      name: document.getElementById('devName').value,
+      skills: document.getElementById('devSkills').value.split(',').map(s => s.trim()),
+      experience_years: parseInt(document.getElementById('devExp').value)
+    };
+
+    await fetch(`${API_BASE}/developers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    e.target.reset();
+    await refreshData();
+  }
+
+  async function deleteDeveloper(id) {
+    if (!confirm("Delete this developer?")) return;
+    await fetch(`${API_BASE}/developers/${id}`, { method: 'DELETE' });
+    await refreshData();
+  }
+
+  async function addTask(e) {
+    e.preventDefault();
+    const payload = {
+      title: document.getElementById('taskTitle').value,
+      required_skills: document.getElementById('taskSkills').value.split(',').map(s => s.trim()),
+      difficulty: document.getElementById('taskDifficulty').value,
+      estimated_hours: parseInt(document.getElementById('taskHours').value),
+      status: "OPEN"
+    };
+
+    await fetch(`${API_BASE}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    e.target.reset();
+    await refreshData();
+  }
+
+  async function deleteTask(id) {
+    if (!confirm("Delete this task?")) return;
+    await fetch(`${API_BASE}/tasks/${id}`, { method: 'DELETE' });
+    await refreshData();
+  }
+
+  window.onload = refreshData;
+</script>
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+id,name,skills,experience_years,max_capacity,current_load
+1,Alice Johnson,"Python, FastAPI, Docker, SQL",5.5,5,2
+2,Bob Smith,"JavaScript, React, Node.js, CSS",3.0,5,3
+3,Charlie Brown,"Python, Machine Learning, Pandas, Scikit-learn",4.0,5,1
+4,Diana Prince,"Java, Spring Boot, PostgreSQL, Kubernetes",6.0,5,4
+5,Evan Wright,"HTML, CSS, JavaScript, Vue.js",2.0,5,0
