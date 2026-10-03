@@ -50,7 +50,6 @@
       letter-spacing: -0.5px;
     }
 
-    /* Tabs Bar */
     .tabs {
       display: flex;
       gap: 10px;
@@ -89,7 +88,6 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Dashboard Stats Cards */
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -110,7 +108,6 @@
     .stat-card h2 { font-size: 36px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
     .stat-card p { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
-    /* Control Panel & Form Cards */
     .controls, .form-card {
       background: #f8fafc;
       border: 1px solid var(--card-border);
@@ -144,7 +141,6 @@
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
 
-    /* Buttons */
     .btn-primary {
       padding: 11px 18px;
       background: var(--primary);
@@ -176,7 +172,6 @@
 
     .btn-danger:hover { background: var(--accent-red); color: white; }
 
-    /* Tables */
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     
     th, td {
@@ -197,7 +192,6 @@
 
     tr:hover { background: #f8fafc; }
 
-    /* Badges */
     .badge-score {
       background: #ecfdf5;
       color: #047857;
@@ -225,7 +219,6 @@
 <div class="container">
   <h1 class="header-title">Software Developer Task Recommender</h1>
 
-  <!-- Navigation Tabs -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('recsTab', this)">Recommendations</button>
     <button class="tab-btn" onclick="switchTab('devsTab', this)">Developers Dashboard</button>
@@ -236,17 +229,16 @@
   <div id="recsTab" class="tab-content active">
     <div class="stats">
       <div class="stat-card">
-        <h2 id="totalDevs">0</h2>
+        <h2 id="totalDevs">...</h2>
         <p>Total Developers</p>
       </div>
       <div class="stat-card">
-        <h2 id="totalTasks">0</h2>
+        <h2 id="totalTasks">...</h2>
         <p>Total Tasks</p>
       </div>
     </div>
 
     <div class="controls">
-      <!-- Added Search Developer Input -->
       <div class="control-group">
         <label style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Search Developer:</label>
         <input type="text" id="devSearchInput" placeholder="🔍 Search name or skill..." oninput="filterDevelopers()">
@@ -350,7 +342,7 @@
 </div>
 
 <script>
-  const API_BASE = "https://developers-task-recommendation.onrender.com/api";
+  const API_BASE = "https://developers-task-recommendation.onrender.com";
   let globalDevsList = [];
 
   function switchTab(tabId, btn) {
@@ -399,16 +391,25 @@
     populateDevDropdown(filtered);
   }
 
+  async function fetchWithRetry(url, retries = 3, delay = 5000) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) return await response.json();
+      } catch (e) {
+        if (i === retries - 1) throw e;
+        await new Promise(res => setTimeout(res, delay));
+      }
+    }
+  }
+
   async function refreshData() {
     try {
-      const statsRes = await fetch(`${API_BASE}/stats`);
-      const stats = await statsRes.json();
-      document.getElementById('totalDevs').innerText = stats.total_developers;
-      document.getElementById('totalTasks').innerText = stats.total_tasks;
+      const stats = await fetchWithRetry(`${API_BASE}/stats`);
+      document.getElementById('totalDevs').innerText = stats.total_developers ?? 0;
+      document.getElementById('totalTasks').innerText = stats.total_tasks ?? 0;
 
-      const devsRes = await fetch(`${API_BASE}/developers`);
-      globalDevsList = await devsRes.json();
-      
+      globalDevsList = await fetchWithRetry(`${API_BASE}/developers`);
       filterDevelopers();
 
       document.getElementById('devsTable').innerHTML = globalDevsList.map(d => `
@@ -421,8 +422,7 @@
         </tr>
       `).join('');
 
-      const tasksRes = await fetch(`${API_BASE}/tasks`);
-      const tasks = await tasksRes.json();
+      const tasks = await fetchWithRetry(`${API_BASE}/tasks`);
       document.getElementById('tasksTable').innerHTML = tasks.map(t => `
         <tr>
           <td>#${t.id}</td>
@@ -436,6 +436,9 @@
 
     } catch (err) {
       console.error("Error loading data:", err);
+      document.getElementById('totalDevs').innerText = '0';
+      document.getElementById('totalTasks').innerText = '0';
+      document.getElementById('recsTable').innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--accent-red);">Server waking up... please refresh in 30 seconds.</td></tr>`;
     }
   }
 
@@ -450,8 +453,7 @@
     }
 
     try {
-      const res = await fetch(`${API_BASE}/recommendations/developer/${devId}?top_n=${topN}`);
-      const data = await res.json();
+      const data = await fetchWithRetry(`${API_BASE}/recommendations/developer/${devId}?top_n=${topN}`);
 
       if (!data || data.length === 0) {
         recsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No recommendations found.</td></tr>`;
