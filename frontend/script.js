@@ -9,8 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const devSelect = document.getElementById('developer-select');
     const topNSelect = document.getElementById('top-n-select');
+    const searchInput = document.getElementById('developer-search'); // Search input event listener
+
     if (devSelect) devSelect.addEventListener('change', handleDeveloperChange);
     if (topNSelect) topNSelect.addEventListener('change', handleDeveloperChange);
+    if (searchInput) searchInput.addEventListener('input', filterDevelopersDropdown);
 });
 
 function setupNavigation() {
@@ -78,6 +81,27 @@ async function loadDevelopersDropdown() {
         });
     } catch (error) {
         console.error('Error loading developers dropdown:', error);
+    }
+}
+
+// NEW FEATURE: Real-time search/filter for developer dropdown options
+function filterDevelopersDropdown() {
+    const searchInput = document.getElementById('developer-search');
+    const devSelect = document.getElementById('developer-select');
+
+    if (!searchInput || !devSelect) return;
+
+    const query = searchInput.value.toLowerCase();
+    const options = devSelect.options;
+
+    for (let i = 0; i < options.length; i++) {
+        const text = options[i].text.toLowerCase();
+        // Always show the default placeholder option, filter others based on search text
+        if (options[i].value === "" || text.includes(query)) {
+            options[i].style.display = "";
+        } else {
+            options[i].style.display = "none";
+        }
     }
 }
 
