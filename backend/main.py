@@ -23,6 +23,33 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def init_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS developers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            skills TEXT NOT NULL,
+            experience_years INTEGER NOT NULL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            required_skills TEXT NOT NULL,
+            difficulty TEXT NOT NULL,
+            estimated_hours INTEGER NOT NULL,
+            status TEXT DEFAULT 'OPEN'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# Initialize tables on app startup
+init_db()
+
 # --- Pydantic Data Models ---
 class DeveloperCreate(BaseModel):
     name: str
@@ -37,6 +64,14 @@ class TaskCreate(BaseModel):
     status: Optional[str] = "OPEN"
 
 # --- API Routes ---
+
+@app.get("/")
+def read_root():
+    return {
+        "status": "online",
+        "message": "Software Developer Task Recommender API is running!",
+        "docs": "/docs"
+    }
 
 @app.get("/api/stats")
 def get_stats():
@@ -147,11 +182,13 @@ def get_recommendations(developer_id: int, top_n: int = Query(5)):
     raw_dev_skills = dev["skills"]
     if isinstance(raw_dev_skills, str):
         try:
-            dev_skills = set(json.loads(raw_dev_skills))
+            parsed_skills = json.loads(raw_dev_skills)
         except Exception:
-            dev_skills = set([s.strip() for s in raw_dev_skills.split(",") if s.strip()])
+            parsed_skills = [s.strip() for s in raw_dev_skills.split(",") if s.strip()]
     else:
-        dev_skills = set(raw_dev_skills)
+        parsed_skills = raw_dev_skills
+
+    dev_skills_lower = {s.lower() for s in parsed_skills}
 
     tasks = cursor.execute("SELECT * FROM tasks WHERE status='OPEN'").fetchall()
     conn.close()
@@ -163,18 +200,20 @@ def get_recommendations(developer_id: int, top_n: int = Query(5)):
         
         if isinstance(raw_req_skills, str):
             try:
-                req_skills = set(json.loads(raw_req_skills))
+                req_skills_list = json.loads(raw_req_skills)
             except Exception:
-                req_skills = set([s.strip() for s in raw_req_skills.split(",") if s.strip()])
+                req_skills_list = [s.strip() for s in raw_req_skills.split(",") if s.strip()]
         else:
-            req_skills = set(raw_req_skills)
+            req_skills_list = raw_req_skills
         
-        match_count = len(dev_skills.intersection(req_skills))
-        total_req = len(req_skills) if req_skills else 1
+        req_skills_lower = {s.lower() for s in req_skills_list}
+        
+        match_count = len(dev_skills_lower.intersection(req_skills_lower))
+        total_req = len(req_skills_lower) if req_skills_lower else 1
         score = round((match_count / total_req) * 100, 2)
         
         t_dict["match_score"] = score
-        t_dict["required_skills"] = list(req_skills)
+        t_dict["required_skills"] = req_skills_list
         recommendations.append(t_dict)
         
     recommendations.sort(key=lambda x: x["match_score"], reverse=True)
