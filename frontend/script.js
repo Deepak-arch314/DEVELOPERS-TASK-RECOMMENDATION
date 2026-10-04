@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = "https://developers-task-recommendation.onrender.com/api";
 
 let allDevelopers = [];
 let allTasks = [];
@@ -19,11 +19,6 @@ async function fetchStats() {
     try {
         let devRes = await fetch(`${API_BASE_URL}/developers`);
         let taskRes = await fetch(`${API_BASE_URL}/tasks`);
-
-        if (!devRes.ok || !taskRes.ok) {
-            devRes = await fetch(`${API_BASE_URL}/api/developers`);
-            taskRes = await fetch(`${API_BASE_URL}/api/tasks`);
-        }
 
         if (devRes.ok && taskRes.ok) {
             allDevelopers = await devRes.json();
@@ -46,8 +41,6 @@ async function fetchStats() {
 async function fetchDevelopers() {
     try {
         let res = await fetch(`${API_BASE_URL}/developers`);
-        if (!res.ok) res = await fetch(`${API_BASE_URL}/api/developers`);
-
         if (res.ok) {
             allDevelopers = await res.json();
             renderDevelopersTable(allDevelopers);
@@ -61,8 +54,6 @@ async function fetchDevelopers() {
 async function fetchTasks() {
     try {
         let res = await fetch(`${API_BASE_URL}/tasks`);
-        if (!res.ok) res = await fetch(`${API_BASE_URL}/api/tasks`);
-
         if (res.ok) {
             allTasks = await res.json();
             renderTasksTable(allTasks);
@@ -96,12 +87,9 @@ async function fetchRecommendations(developerId) {
 
     try {
         const topNSelect = document.getElementById("top-n-select");
-        const topN = topNSelect ? topNSelect.value : 10;
+        const topN = topNSelect ? topNSelect.value : 5;
 
-        let res = await fetch(`${API_BASE_URL}/recommend?developer_id=${developerId}&top_n=${topN}`);
-        if (!res.ok) {
-            res = await fetch(`${API_BASE_URL}/api/recommend?developer_id=${developerId}&top_n=${topN}`);
-        }
+        let res = await fetch(`${API_BASE_URL}/recommendations/${developerId}?top_n=${topN}`);
 
         if (res.ok) {
             const recommendations = await res.json();
@@ -140,11 +128,11 @@ function renderRecommendations(tasks) {
     `;
 
     tasks.forEach(task => {
-        const title = task.title || task.task_title || "N/A";
+        const title = task.title || "N/A";
         const skills = Array.isArray(task.required_skills) ? task.required_skills.join(", ") : (task.required_skills || "N/A");
         const difficulty = task.difficulty || "Medium";
-        const hours = task.est_hours || task.estimated_hours || "N/A";
-        const score = task.score ? (task.score * 100).toFixed(1) + "%" : "N/A";
+        const hours = task.estimated_hours || "N/A";
+        const score = task.match_score !== undefined ? task.match_score + "%" : "N/A";
 
         html += `
             <tr>
@@ -185,9 +173,9 @@ function renderDevelopersTable(developers) {
     `;
 
     developers.forEach(dev => {
-        const id = dev.id || dev.developer_id || "N/A";
+        const id = dev.id || "N/A";
         const skills = Array.isArray(dev.skills) ? dev.skills.join(", ") : dev.skills;
-        const exp = dev.experience_level || dev.experience_years || dev.experience || "N/A";
+        const exp = dev.experience_years ? `${dev.experience_years} yrs` : "N/A";
 
         html += `
             <tr>
@@ -228,9 +216,9 @@ function renderTasksTable(tasks) {
     `;
 
     tasks.forEach(task => {
-        const id = task.id || task.task_id || "N/A";
+        const id = task.id || "N/A";
         const skills = Array.isArray(task.required_skills) ? task.required_skills.join(", ") : task.required_skills;
-        const hours = task.est_hours || task.estimated_hours || "N/A";
+        const hours = task.estimated_hours || "N/A";
 
         html += `
             <tr>
@@ -272,11 +260,19 @@ function setupEventListeners() {
                 let res = await fetch(`${API_BASE_URL}/developers`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, skills: skills.split(",").map(s => s.trim()), experience_level: exp })
+                    body: JSON.stringify({ 
+                        name, 
+                        skills: skills.split(",").map(s => s.trim()), 
+                        experience_years: parseInt(exp) || 1 
+                    })
                 });
 
                 if (res.ok) {
+                    alert("Developer added successfully!");
                     initApp();
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to add developer: " + JSON.stringify(errData));
                 }
             } catch (err) {
                 console.error("Error adding developer:", err);
@@ -299,11 +295,21 @@ function setupEventListeners() {
                 let res = await fetch(`${API_BASE_URL}/tasks`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ title, required_skills: skills.split(",").map(s => s.trim()), difficulty: diff, est_hours: parseInt(hours) || 8 })
+                    body: JSON.stringify({ 
+                        title, 
+                        required_skills: skills.split(",").map(s => s.trim()), 
+                        difficulty: diff || "Medium", 
+                        estimated_hours: parseInt(hours) || 8,
+                        status: "OPEN"
+                    })
                 });
 
                 if (res.ok) {
+                    alert("Task added successfully!");
                     initApp();
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to add task: " + JSON.stringify(errData));
                 }
             } catch (err) {
                 console.error("Error adding task:", err);
