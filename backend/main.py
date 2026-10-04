@@ -26,6 +26,8 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    # Create Tables
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS developers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,9 +47,80 @@ def init_db():
         )
     """)
     conn.commit()
+
+    # --- AUTO-SEED DATA IF TABLES ARE EMPTY ---
+    dev_count = cursor.execute("SELECT COUNT(*) FROM developers").fetchone()[0]
+    if dev_count == 0:
+        initial_developers = [
+            ("Alice Smith", json.dumps(["Python", "FastAPI", "SQLite"]), 4),
+            ("Bob Jones", json.dumps(["JavaScript", "React", "Node.js"]), 3),
+            ("Charlie Brown", json.dumps(["Python", "Django", "PostgreSQL"]), 5),
+            ("Diana Prince", json.dumps(["Java", "Spring Boot", "Docker"]), 6),
+            ("Evan Wright", json.dumps(["TypeScript", "Vue.js", "CSS"]), 2),
+            ("Fiona Gallagher", json.dumps(["Python", "FastAPI", "React"]), 4),
+            ("George Clark", json.dumps(["C++", "Qt", "Algorithms"]), 8),
+            ("Hannah Abbott", json.dumps(["Ruby", "Ruby on Rails", "MySQL"]), 3),
+            ("Ian Malcolm", json.dumps(["Go", "Kubernetes", "Docker"]), 5),
+            ("Julia Roberts", json.dumps(["Python", "Machine Learning", "Pandas"]), 4),
+            ("Kevin Bacon", json.dumps(["JavaScript", "HTML", "CSS"]), 1),
+            ("Laura Croft", json.dumps(["Rust", "WebAssembly", "C++"]), 7),
+            ("Michael Scott", json.dumps(["PHP", "Laravel", "MySQL"]), 5),
+            ("Nina Nina", json.dumps(["Python", "Flask", "MongoDB"]), 2),
+            ("Oscar Martinez", json.dumps(["SQL", "PostgreSQL", "Data Analysis"]), 6),
+            ("Pam Beesly", json.dumps(["UI/UX Design", "Figma", "CSS"]), 3),
+            ("Quentin Tarantino", json.dumps(["Python", "FastAPI", "Docker"]), 4),
+            ("Rachel Green", json.dumps(["React", "Redux", "JavaScript"]), 3),
+            ("Steve Rogers", json.dumps(["Java", "Kotlin", "Android"]), 7),
+            ("Tony Stark", json.dumps(["Python", "AI", "C++", "FastAPI"]), 10),
+            ("Umar Khan", json.dumps(["Go", "Microservices", "GRPC"]), 4),
+            ("Victor Stone", json.dumps(["Cybersecurity", "Python", "Networking"]), 6),
+            ("Wanda Maximoff", json.dumps(["TypeScript", "Angular", "Node.js"]), 5),
+            ("Xavier Charles", json.dumps(["Data Science", "Python", "PyTorch"]), 8),
+            ("Yara Shahidi", json.dumps(["Swift", "iOS", "UI/UX"]), 3)
+        ]
+        cursor.executemany(
+            "INSERT INTO developers (name, skills, experience_years) VALUES (?, ?, ?)",
+            initial_developers
+        )
+
+    task_count = cursor.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+    if task_count == 0:
+        initial_tasks = [
+            ("Build REST API Endpoints", json.dumps(["Python", "FastAPI"]), "Medium", 12, "OPEN"),
+            ("Design Responsive Landing Page", json.dumps(["HTML", "CSS", "JavaScript"]), "Easy", 8, "OPEN"),
+            ("Optimize SQLite Queries", json.dumps(["SQL", "SQLite", "Python"]), "Medium", 10, "OPEN"),
+            ("Migrate Database to PostgreSQL", json.dumps(["PostgreSQL", "SQL"]), "Hard", 20, "OPEN"),
+            ("Implement User Authentication", json.dumps(["Python", "Django", "Security"]), "Hard", 16, "OPEN"),
+            ("Develop React Mobile View", json.dumps(["React", "JavaScript", "CSS"]), "Medium", 14, "OPEN"),
+            ("Configure Docker Container", json.dumps(["Docker", "Linux"]), "Medium", 6, "OPEN"),
+            ("Setup Kubernetes Cluster", json.dumps(["Kubernetes", "Docker", "DevOps"]), "Hard", 25, "OPEN"),
+            ("Train Classification Model", json.dumps(["Python", "Machine Learning", "Pandas"]), "Hard", 30, "OPEN"),
+            ("Create Figma Wireframes", json.dumps(["UI/UX Design", "Figma"]), "Easy", 8, "OPEN"),
+            ("Fix Memory Leak in C++ Module", json.dumps(["C++", "Algorithms"]), "Hard", 18, "OPEN"),
+            ("Build Spring Boot Microservice", json.dumps(["Java", "Spring Boot"]), "Medium", 15, "OPEN"),
+            ("Write Unit Tests for Express App", json.dumps(["JavaScript", "Node.js"]), "Easy", 6, "OPEN"),
+            ("Build Vue.js Admin Dashboard", json.dumps(["Vue.js", "JavaScript", "CSS"]), "Medium", 16, "OPEN"),
+            ("Implement WebAssembly Module", json.dumps(["Rust", "WebAssembly"]), "Hard", 22, "OPEN"),
+            ("Setup CI/CD Pipeline", json.dumps(["DevOps", "CI/CD", "Docker"]), "Medium", 10, "OPEN"),
+            ("Build Flutter Cross-Platform App", json.dumps(["Flutter", "Dart", "Mobile"]), "Hard", 28, "OPEN"),
+            ("Develop GraphQL API Schema", json.dumps(["GraphQL", "Node.js", "JavaScript"]), "Medium", 12, "OPEN"),
+            ("Refactor Legacy Ruby Codebase", json.dumps(["Ruby", "Ruby on Rails"]), "Hard", 24, "OPEN"),
+            ("Build iOS Swift Onboarding", json.dumps(["Swift", "iOS", "UI/UX"]), "Medium", 14, "OPEN"),
+            ("Perform Penetration Testing", json.dumps(["Cybersecurity", "Linux", "Security"]), "Hard", 20, "OPEN"),
+            ("Fine-tune Transformer AI Model", json.dumps(["Python", "PyTorch", "AI"]), "Hard", 35, "OPEN"),
+            ("Build Next.js Static Site", json.dumps(["TypeScript", "Next.js", "React"]), "Easy", 8, "OPEN"),
+            ("Configure AWS Terraform Infrastructure", json.dumps(["AWS", "Terraform", "DevOps"]), "Hard", 18, "OPEN"),
+            ("Optimize Android App Memory", json.dumps(["Java", "Kotlin", "Android"]), "Medium", 12, "OPEN")
+        ]
+        cursor.executemany(
+            "INSERT INTO tasks (title, required_skills, difficulty, estimated_hours, status) VALUES (?, ?, ?, ?, ?)",
+            initial_tasks
+        )
+
+    conn.commit()
     conn.close()
 
-# Initialize tables on app startup
+# Initialize tables and seed data on app startup
 init_db()
 
 # --- Pydantic Data Models ---
